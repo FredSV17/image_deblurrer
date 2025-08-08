@@ -8,8 +8,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.ndimage import gaussian_filter
 
-BLURRED_IMGS_PATH = 'data_new/blr-img/cane'
-NORMAL_IMGS_PATH = 'data_new/nrm-img/cane'
+BLURRED_IMGS_PATH = 'data_new/blr-img/images'
+NORMAL_IMGS_PATH = 'data_new/nrm-img/images'
 
 # Create a dataset with blurred images
 def blur(images):
@@ -46,34 +46,39 @@ def save_images(images, start_range, directory_path):
         img_pil.save(os.path.join(directory_path, f"image_{curr_index}.png"))
         curr_index += 1
 
-def create_blurred_images(directory_path, image_size=(500, 375),num_imgs=100,batch_size=50, show_img=False,max_workers=4):
-    last_i = 0
-    
-    for i in range(0,num_imgs+1,batch_size):
-        if i > 0:
-            # Process images in batches
-            img_paths = os.listdir(directory_path)[last_i:i]
-            # Get list of image paths
-            image_paths = [os.path.join(directory_path, filename) for filename in img_paths if filename.endswith(('.png', '.jpg', '.jpeg', '.bmp', '.tiff'))]
-            print(image_paths)
-        
-            # Use ProcessPoolExecutor to process images in parallel
-            with ProcessPoolExecutor(max_workers=max_workers) as executor:
-                # Map process_image to the image paths
-                images = list(tqdm(executor.map(process_image, image_paths, [image_size]*len(image_paths)), total=len(image_paths)))
-            images = np.array(images)
-            # Ensure images are of type uint8 before augmentation
-            images = (images * 255).astype(np.uint8)  # Convert normalized images back to uint8
-            blurred_imgs = blur(images)
-            if show_img:
-                show_grid(images, cols=8)
-                show_grid(blurred_imgs, cols=8)
-            else:
-                # Save the blurred images to a new directory
-                save_images(blurred_imgs, last_i, BLURRED_IMGS_PATH)
-                save_images(images, last_i, NORMAL_IMGS_PATH)
-            print(f"Processed images from {last_i} to {i}")
-            last_i = i
+def create_blurred_images(root_dir, img_dirs, image_size=(500, 375),num_imgs=100,batch_size=50, show_img=False,max_workers=4):
+    img_number = 0
+    for img_dir in img_dirs:
+        last_i_batch = 0
+        for i in range(0,num_imgs+1,batch_size+1):
+            if i > 0:
+                # Complete path for class
+                class_dir = f'{root_dir}/{img_dir}'
+                # Process images in batches
+                img_paths = os.listdir(class_dir)[last_i_batch:i]
+                # Get list of image paths
+                image_paths = [os.path.join(class_dir, filename) for filename in img_paths if filename.endswith(('.png', '.jpg', '.jpeg', '.bmp', '.tiff'))]
+                print(image_paths)
+            
+                # Use ProcessPoolExecutor to process images in parallel
+                with ProcessPoolExecutor(max_workers=max_workers) as executor:
+                    # Map process_image to the image paths
+                    images = list(tqdm(executor.map(process_image, image_paths, [image_size]*len(image_paths)), total=len(image_paths)))
+                images = np.array(images)
+                # Ensure images are of type uint8 before augmentation
+                images = (images * 255).astype(np.uint8)  # Convert normalized images back to uint8
+                blurred_imgs = blur(images)
+                if show_img:
+                    show_grid(images, cols=8)
+                    show_grid(blurred_imgs, cols=8)
+                else:
+                    # Save the blurred images to a new directory
+                    img_number = img_number + last_i_batch
+                    save_images(blurred_imgs, img_number, os.path.join(BLURRED_IMGS_PATH))
+                    save_images(images, img_number, os.path.join(NORMAL_IMGS_PATH))
+                print(f"Processed images from {last_i_batch} to {i} for {img_dir}")
+                print(f"Current number of images: {img_number}")
+                last_i_batch = i
 
             
 

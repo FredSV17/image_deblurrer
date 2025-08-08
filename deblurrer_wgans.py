@@ -159,7 +159,7 @@ def train_wgan(img_nrml_dir, img_blur_dir, show_results_by_epoch=5):
             gradient_penalty = compute_gradient_penalty(discriminator, real_imgs.data, fake_imgs.data)
             
             # Adversarial loss
-            loss_D = -torch.mean(real_validity) + torch.mean(fake_validity) + lambda_gp * gradient_penalty
+            loss_D = -torch.mean(real_validity) + torch.mean(fake_validity) + lambda_gp # * gradient_penalty
             
             loss_D.backward()
             optimizer_D.step()
