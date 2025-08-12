@@ -1,25 +1,21 @@
-import argparse
 import os
 import numpy as np
-import math
-import sys
 
 import torchvision.transforms as transforms
 from torchvision.utils import save_image
 
-from torch.utils.data import DataLoader
 from torchvision import datasets
 from torch.autograd import Variable
 
-import torch.nn as nn
 import torch.nn.functional as F
 import torch
 
 import torchvision.utils as vutils
 import matplotlib.pyplot as plt
-import torch.autograd as autograd
 
 from generator_discriminator_arch import LightUNetGenerator, Discriminator
+from model_args import args
+from loss import compute_gradient_penalty
     
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 Tensor = torch.cuda.FloatTensor if device == 'cuda' else torch.FloatTensor
@@ -27,23 +23,8 @@ Tensor = torch.cuda.FloatTensor if device == 'cuda' else torch.FloatTensor
 
 os.makedirs("images", exist_ok=True)
 
-args = {
-    'n_epochs': 50,
-    'batch_size': 32,
-    'lr_gen': 1e-4,
-    'lr_dis': 1e-4,
-    'n_cpu': 8,
-    'latent_dim': 64,
-    'img_size': 640,
-    'channels': 3,
-    'n_critic': 3,
-    'clip_value': 0.01,
-    'sample_interval': 400,
-}
 
 img_shape = (args['channels'], args['img_size'], args['img_size'])
-
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 # Initialize generator and discriminator
 generator = LightUNetGenerator()
@@ -52,20 +33,6 @@ discriminator = Discriminator()
 if device == 'cuda':
     generator.cuda()
     discriminator.cuda()
-
-# Configure data loader
-# os.makedirs("../../data/mnist", exist_ok=True)
-# dataloader = torch.utils.data.DataLoader(
-#     datasets.MNIST(
-#         "../../data/mnist",
-#         train=True,
-#         download=True,
-#         transform=transforms.Compose([transforms.ToTensor(), transforms.Normalize([0.5], [0.5])]),
-#     ),
-#     batch_size=args['batch_size'],
-#     shuffle=True,
-# )
-
 
 # Loss weight for gradient penalty
 lambda_gp = 10
@@ -77,52 +44,24 @@ transf = transforms.Compose([
     transforms.Normalize(*norm,inplace=True),
 ])
 
-
-
-
-def compute_gradient_penalty(D, real_samples, fake_samples):
-    """Calculates the gradient penalty loss for WGAN GP"""
-    # Random weight term for interpolation between real and fake samples
-    alpha = Tensor(np.random.random((real_samples.size(0), 1, 1, 1)))
-    # Get random interpolation between real and fake samples
-    interpolates = (alpha * real_samples + ((1 - alpha) * fake_samples)).requires_grad_(True)
-    d_interpolates = D(interpolates)
-    fake = Variable(Tensor(real_samples.shape[0], 1).fill_(1.0), requires_grad=False)
-    squeezed_tensor = d_interpolates.view(args['batch_size'], -1)
-    # Get gradient w.r.t. interpolates
-    gradients = autograd.grad(
-        outputs=squeezed_tensor,
-        inputs=interpolates,
-        grad_outputs=fake,
-        create_graph=True,
-        retain_graph=True,
-        only_inputs=True,
-    )[0]
-    gradients = gradients.view(gradients.size(0), -1)
-    gradient_penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean()
-    return gradient_penalty
-
-def scale_image(image):
-    """
-    Scales an image with values in the range [0, 50] to the range [-1, 1].
-    """
-    # Ensure the input is a numpy array
-    image = np.array(image, dtype=np.float32)
+def save_model(optimizer_G, optimizer_D, epoch):
+    model_path = 'model'
+    if not os.path.exists(model_path):
+        os.makedirs(model_path)
+    # Saving
+    torch.save({
+        'generator_state_dict': generator.state_dict(),
+        'discriminator_state_dict': discriminator.state_dict(),
+        'g_optimizer_state_dict': optimizer_G.state_dict(),
+        'd_optimizer_state_dict': optimizer_D.state_dict(),
+        'epoch': epoch
+    }, os.path.join(model_path, 'wgan_checkpoint.pth'))
     
-    # Apply the linear scaling transformation
-    scaled_image = (image * 2 / 50) - 1
-    
-    return Tensor(scaled_image)
-
-def channel_consistency_loss(img):
-    r, g, b = img[:, 0:1], img[:, 1:2], img[:, 2:3]
-    return torch.mean(torch.abs(r - g)) + torch.mean(torch.abs(r - b)) + torch.mean(torch.abs(g - b))
-
-def train_wgan(img_nrml_dir, img_blur_dir, show_results_by_epoch=5):
+def train_wgan(img_nrml_dir, img_blur_dir, show_results_by_epoch=5, save_model_by_epoch=False):
     dataset_normal = datasets.ImageFolder(root=img_nrml_dir,transform=transf)
     dataloader = torch.utils.data.DataLoader(dataset_normal, batch_size=args['batch_size'], shuffle=True, num_workers=2, drop_last=True)
-    dataset_noisy = datasets.ImageFolder(root=img_blur_dir,transform=transf)
-    dataloader_noisy = torch.utils.data.DataLoader(dataset_noisy, batch_size=args['batch_size'], shuffle=True, num_workers=2, drop_last=True)
+    dataset_blurred = datasets.ImageFolder(root=img_blur_dir,transform=transf)
+    dataloader_blurred = torch.utils.data.DataLoader(dataset_blurred, batch_size=args['batch_size'], shuffle=True, num_workers=2, drop_last=True)
 
     # Optimizers
     optimizer_G = torch.optim.Adam(generator.parameters(), lr=args['lr_gen'])
@@ -133,7 +72,7 @@ def train_wgan(img_nrml_dir, img_blur_dir, show_results_by_epoch=5):
 
     batches_done = 0
     for epoch in range(args['n_epochs']):
-        for i, ((imgs_normal, _), (imgs_noisy, _)) in enumerate(zip(dataloader, dataloader_noisy)):
+        for i, ((imgs_normal, _), (imgs_noisy, _)) in enumerate(zip(dataloader, dataloader_blurred)):
             imgs_normal = imgs_normal
             imgs_noisy = imgs_noisy
             imgs_normal = imgs_normal.to(device)
@@ -145,8 +84,7 @@ def train_wgan(img_nrml_dir, img_blur_dir, show_results_by_epoch=5):
             #  Train Discriminator
             # ---------------------
 
-            optimizer_D.zero_grad()
-
+            
             # Sample noise as generator input
             # Generate a batch of images
             fake_imgs = generator(imgs_noisy).detach()
@@ -159,7 +97,7 @@ def train_wgan(img_nrml_dir, img_blur_dir, show_results_by_epoch=5):
             gradient_penalty = compute_gradient_penalty(discriminator, real_imgs.data, fake_imgs.data)
             
             # Adversarial loss
-            loss_D = -torch.mean(real_validity) + torch.mean(fake_validity) + lambda_gp # * gradient_penalty
+            loss_D = -torch.mean(real_validity) + torch.mean(fake_validity) + lambda_gp * gradient_penalty
             
             loss_D.backward()
             optimizer_D.step()
@@ -182,7 +120,6 @@ def train_wgan(img_nrml_dir, img_blur_dir, show_results_by_epoch=5):
                 # Adversarial loss
                 loss_G = -torch.mean(discriminator(gen_imgs)) 
                 l1_loss = F.l1_loss(gen_imgs, imgs_normal)
-                #channel_loss = channel_consistency_loss(gen_imgs)
                 # Combined loss
                 loss_G = loss_G + 0.1 * l1_loss
                 loss_G.backward()
@@ -208,11 +145,13 @@ def train_wgan(img_nrml_dir, img_blur_dir, show_results_by_epoch=5):
             plt.imshow(vutils.make_grid(denoised_images.detach().cpu(), padding=2, normalize=True).permute(1, 2, 0))
             plt.axis('off')
             plt.title("Generated images")
-            plt.show()
+            plt.savefig(f'images/Results/Gen_imgs_epoch_{epoch}.png')
             
             plt.figure(figsize=(10, 10))
-            plt.title("Noise images")
+            plt.title("Blur images")
             plt.imshow(vutils.make_grid(imgs_noisy.detach().cpu(), padding=2, normalize=True).permute(1, 2, 0))
             plt.axis('off')
-            plt.show()
-        print()
+            plt.savefig(f'images/Results/Blur_imgs_epoch_{epoch}.png')
+            if save_model_by_epoch:
+                print("Saving model...")
+                save_model(optimizer_G, optimizer_D, epoch)

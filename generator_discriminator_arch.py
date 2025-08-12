@@ -10,6 +10,10 @@ import torch.nn as nn
 import torchvision.models as models
 
 
+import torch
+import torch.nn as nn
+
+    
 class LightUNetGenerator(nn.Module):
     def __init__(self, in_channels=3, out_channels=3, features=32):
         super(LightUNetGenerator, self).__init__()
@@ -60,7 +64,7 @@ class LightUNetGenerator(nn.Module):
 
         out = self.final(up2)             # 320 -> 640
         out = self.tanh(out)
-        return torch.clamp(out, -0.98, 0.98)
+        return out
     
 
 class Discriminator(nn.Module):
