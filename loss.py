@@ -13,6 +13,32 @@ from model_args import args
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 Tensor = torch.cuda.FloatTensor if device == 'cuda' else torch.FloatTensor
 
+class PerceptualLoss():
+    
+    def contentFunc(self):
+        conv_3_3_layer = 14
+        cnn = models.vgg19(pretrained=True).features
+        cnn = cnn.cuda()
+        model = nn.Sequential()
+        model = model.cuda()
+        for i, layer in enumerate(list(cnn)):
+            model.add_module(str(i), layer)
+            if i == conv_3_3_layer:
+                break
+        return model
+		
+    def __init__(self):
+        self.contentFunc = self.contentFunc()
+            
+    def get_loss(self, fakeIm, realIm):
+        fakeIm = F.interpolate(fakeIm, size=(224,224), mode='bilinear', align_corners=False)
+        realIm = F.interpolate(realIm, size=(224,224), mode='bilinear', align_corners=False)
+        f_fake = self.contentFunc.forward(fakeIm)
+        f_real = self.contentFunc.forward(realIm)
+        f_real_no_grad = f_real.detach()
+        loss_content = ((f_fake - f_real_no_grad)**2).mean()
+        return loss_content
+
 def compute_gradient_penalty(D, real_samples, fake_samples):
     """Calculates the gradient penalty loss for WGAN GP"""
     # Random weight term for interpolation between real and fake samples

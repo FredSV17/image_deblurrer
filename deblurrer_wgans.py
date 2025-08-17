@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 
 from generator_discriminator_arch import LightUNetGenerator, Discriminator
 from model_args import args
-from loss import compute_gradient_penalty
+from loss import compute_gradient_penalty, PerceptualLoss
     
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 Tensor = torch.cuda.FloatTensor if device == 'cuda' else torch.FloatTensor
@@ -114,14 +114,15 @@ def train_wgan(img_nrml_dir, img_blur_dir, show_results_by_epoch=5, save_model_b
                 # -----------------
 
                 optimizer_G.zero_grad()
-
+                percept_loss = PerceptualLoss()
                 # Generate a batch of images
                 gen_imgs = generator(imgs_noisy)
                 # Adversarial loss
-                loss_G = -torch.mean(discriminator(gen_imgs)) 
-                l1_loss = F.l1_loss(gen_imgs, imgs_normal)
+                loss_G = -torch.mean(discriminator(gen_imgs))
+                # l1_loss = F.l1_loss(gen_imgs, imgs_normal)
+                content_loss = percept_loss.get_loss(gen_imgs, imgs_normal)
                 # Combined loss
-                loss_G = loss_G + 0.1 * l1_loss
+                loss_G = loss_G + 0.1 * content_loss
                 loss_G.backward()
                 optimizer_G.step()
                 
