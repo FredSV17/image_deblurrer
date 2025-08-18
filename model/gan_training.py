@@ -81,7 +81,7 @@ def train_wgan(model, dtl, show_results_by_epoch=5, save_model_by_epoch=False):
                 # l1_loss = F.l1_loss(gen_imgs, imgs_normal)
                 content_loss = percept_loss.get_loss(gen_imgs, imgs_normal)
                 # Combined loss
-                loss_G = loss_G + 0.1 * content_loss
+                loss_G = loss_G + 0.4 * content_loss
                 loss_G.backward()
                 model.optimizer_G.step()
                 

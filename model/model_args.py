@@ -10,6 +10,6 @@ args = {
     'n_critic': 3,
     'clip_value': 0.01,
     'sample_interval': 400,
-    'save_by_epoch': 10,
+    'save_by_epoch': 5,
     
 }
