@@ -8,7 +8,7 @@ from torch.autograd import Variable, grad
 import torch.nn.functional as F
 import torch
 
-from model_args import args
+from model.model_args import args
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 Tensor = torch.cuda.FloatTensor if device == 'cuda' else torch.FloatTensor
@@ -31,32 +31,36 @@ class PerceptualLoss():
         self.contentFunc = self.contentFunc()
             
     def get_loss(self, fakeIm, realIm):
-        fakeIm = F.interpolate(fakeIm, size=(224,224), mode='bilinear', align_corners=False)
-        realIm = F.interpolate(realIm, size=(224,224), mode='bilinear', align_corners=False)
         f_fake = self.contentFunc.forward(fakeIm)
         f_real = self.contentFunc.forward(realIm)
         f_real_no_grad = f_real.detach()
         loss_content = ((f_fake - f_real_no_grad)**2).mean()
         return loss_content
 
-def compute_gradient_penalty(D, real_samples, fake_samples):
-    """Calculates the gradient penalty loss for WGAN GP"""
+
+def compute_gradient_penalty(D, real_samples, fake_samples, device='cuda'):
+    """Calculates the gradient penalty for WGAN-GP."""
+    batch_size = real_samples.size(0)
+
     # Random weight term for interpolation between real and fake samples
-    alpha = Tensor(np.random.random((real_samples.size(0), 1, 1, 1)))
+    alpha = torch.rand(batch_size, 1, 1, 1, device=device)
+
     # Get random interpolation between real and fake samples
     interpolates = (alpha * real_samples + ((1 - alpha) * fake_samples)).requires_grad_(True)
+
     d_interpolates = D(interpolates)
-    fake = Variable(Tensor(real_samples.shape[0], 1).fill_(1.0), requires_grad=False)
-    squeezed_tensor = d_interpolates.view(args['batch_size'], -1)
-    # Get gradient w.r.t. interpolates
-    gradients = grad(
-        outputs=squeezed_tensor,
+    fake = torch.ones_like(d_interpolates, device=device, requires_grad=False)
+
+    # Calculate gradients of D(interpolates) w.r.t. interpolates
+    gradients = torch.autograd.grad(
+        outputs=d_interpolates,
         inputs=interpolates,
         grad_outputs=fake,
         create_graph=True,
         retain_graph=True,
-        only_inputs=True,
+        only_inputs=True
     )[0]
-    gradients = gradients.view(gradients.size(0), -1)
-    gradient_penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean()
-    return gradient_penalty
+
+    gradients = gradients.view(batch_size, -1)
+    penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean()
+    return penalty
