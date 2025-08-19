@@ -80,48 +80,53 @@ class DeepUNetBlock(BaseArchitecture):
 
 
 
-class Discriminator(nn.Module):
-    def __init__(self, in_channels=3, features=64):
+class Discriminator(BaseArchitecture):
+    def __init__(self, in_channels=3, features=64, norm_layer=nn.BatchNorm2d, with_dropout=True):
         super(Discriminator, self).__init__()
+        self.norm_layer = norm_layer
 
-        # DeblurGAN uses PatchGAN-style convolutions (kernel=4, stride=2, padding=1)
-        self.conv1 = nn.Conv2d(in_channels, features, kernel_size=4, stride=2, padding=1)      # ↓2
-        self.conv2 = nn.Conv2d(features, features * 2, kernel_size=4, stride=2, padding=1)     # ↓2
-        self.bn2   = nn.BatchNorm2d(features * 2)
+        self.conv1 = self.conv_block(in_channels, features)            
+        self.drop1 = nn.Dropout(0.2) if with_dropout else nn.Identity()
 
-        self.conv3 = nn.Conv2d(features * 2, features * 4, kernel_size=4, stride=2, padding=1) # ↓2
-        self.bn3   = nn.BatchNorm2d(features * 4)
+        self.conv2 = self.conv_block(features, features * 2)           
+        self.drop2 = nn.Dropout(0.4) if with_dropout else nn.Identity()
 
-        self.conv4 = nn.Conv2d(features * 4, features * 8, kernel_size=4, stride=4, padding=1) # ↓1
-        self.bn4   = nn.BatchNorm2d(features * 8)
+        self.conv3 = nn.Conv2d(features * 2, features * 4,
+                               kernel_size=4, stride=2, padding=1)   
+        self.drop3 = nn.Dropout(0.6) if with_dropout else nn.Identity()
 
-        # Output a 1-channel patch map → PatchGAN
-        self.conv5 = nn.Conv2d(features * 8, 1, kernel_size=4, stride=1, padding=1)
+        # Output 1-channel patch prediction
+        self.conv4 = nn.Conv2d(features * 4, 1, kernel_size=4, stride=1, padding=1)
 
         self.leaky_relu = nn.LeakyReLU(0.2, inplace=True)
 
     def forward(self, x):
-        x = self.leaky_relu(self.conv1(x))      # [B, 64,   H/2, W/2]
-        x = self.leaky_relu(self.bn2(self.conv2(x)))  # [B, 128,  H/4, W/4]
-        x = self.leaky_relu(self.bn3(self.conv3(x)))  # [B, 256,  H/8, W/8]
-        x = self.leaky_relu(self.bn4(self.conv4(x)))  # [B, 512,  H/8, W/8]
-        x = self.conv5(x)                             # [B, 1,    H/8, W/8]
-        return x
+        x = self.leaky_relu(self.conv1(x))
+        x = self.drop1(x)
+
+        x = self.leaky_relu(self.conv2(x))
+        x = self.drop2(x)
+
+        x = self.leaky_relu(self.conv3(x))
+        x = self.drop3(x)
+
+        return self.conv4(x)   # [B,1,H/8,W/8]
     
-class LightDiscriminator(nn.Module):
-    def __init__(self, in_channels=3, features=64):
-        super(LightDiscriminator, self).__init__()
+# class LightDiscriminator(nn.Module):
+#     def __init__(self, in_channels=3, features=64):
+#         super(LightDiscriminator, self).__init__()
 
-        self.conv1 = nn.Conv2d(in_channels, features, kernel_size=4, stride=2, padding=1)   # 128× 128× 64
-        self.conv2 = nn.Conv2d(features, features * 2, kernel_size=4, stride=2, padding=1)   # 64× 64× 128
-        self.conv3 = nn.Conv2d(features * 2, features * 4, kernel_size=4, stride=2, padding=1)  # 32× 32× 256
-        self.conv4 = nn.Conv2d(features * 4, 1, kernel_size=4, stride=2, padding=1) # 16× 16x 1    
+#         self.conv1 = nn.Conv2d(in_channels, features, kernel_size=4, stride=2, padding=1)   # 128× 128× 64
+#         self.conv2 = nn.Conv2d(features, features * 2, kernel_size=4, stride=2, padding=1)   # 64× 64× 128
+#         self.conv3 = nn.Conv2d(features * 2, features * 4, kernel_size=4, stride=2, padding=1)  # 32× 32× 256
+#         self.conv4 = nn.Conv2d(features * 4, 1, kernel_size=4, stride=2, padding=1) # 16× 16x 1    
 
-        self.leaky_relu = nn.LeakyReLU(0.2, inplace=True)
+#         self.leaky_relu = nn.LeakyReLU(0.2, inplace=True)
 
-    def forward(self, x):
-        x = self.leaky_relu(self.conv1(x))  
-        x = self.leaky_relu(self.conv2(x))  
-        x = self.leaky_relu(self.conv3(x))  
-        x = self.conv4(x)                   
-        return x
+#     def forward(self, x):
+#         x = self.leaky_relu(self.conv1(x))  
+#         x = self.leaky_relu(self.conv2(x))  
+#         x = self.leaky_relu(self.conv3(x))  
+#         x = self.conv4(x)                   
+#         return x
+    
