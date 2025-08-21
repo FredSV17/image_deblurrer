@@ -1,4 +1,4 @@
-from model.blocks import DeepUNetBlock, Discriminator
+from model.blocks import LightUNetBlock, DeepUNetBlock, ConvBlock
 import torch
 from model.model_args import args
 import os
@@ -7,7 +7,7 @@ class GAN():
     def __init__(self, saved_model_path, device):
         # Initialize generator + discriminator
         self.generator = DeepUNetBlock()
-        self.discriminator = Discriminator()
+        self.discriminator = ConvBlock()
         
         self.optimizer_G = torch.optim.Adam(self.generator.parameters(), lr=args['lr_gen'])
         self.optimizer_D = torch.optim.Adam(self.discriminator.parameters(), lr=args['lr_dis'])

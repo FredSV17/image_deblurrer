@@ -31,6 +31,8 @@ class PerceptualLoss():
         self.contentFunc = self.contentFunc()
             
     def get_loss(self, fakeIm, realIm):
+        fakeIm = F.interpolate(fakeIm, size=(224,224), mode='bilinear', align_corners=False)
+        realIm = F.interpolate(realIm, size=(224,224), mode='bilinear', align_corners=False)
         f_fake = self.contentFunc.forward(fakeIm)
         f_real = self.contentFunc.forward(realIm)
         f_real_no_grad = f_real.detach()
