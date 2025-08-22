@@ -13,11 +13,11 @@ import torchvision.models as models
 import torch
 import torch.nn as nn
 
-from model.base_architecture import BaseArchitecture
+from model.base_blocks import BaseBlocks
 
 
         
-class DeepUNetBlock(BaseArchitecture):
+class DeepUNetBlock(BaseBlocks):
     def __init__(self, in_channels=3, out_channels=3, features=32, norm_layer=nn.BatchNorm2d):
         super(DeepUNetBlock, self).__init__()
         self.norm_layer = norm_layer
@@ -35,10 +35,10 @@ class DeepUNetBlock(BaseArchitecture):
         self.bottleneck4 = self.bottleneck_block(features * 8, features * 4)
         
         # Decoder
-        self.up1 = self.up_block(features * 4, features * 4)          # 80 -> 160
-        self.up2 = self.up_block(features * 8, features * 4)          # 160 -> 320
-        self.up3 = self.up_block(features * 8, features * 2)
-        self.up4 = self.up_block(features * 4, features)
+        self.up1 = self.conv_upsample_block(features * 4, features * 4)          # 80 -> 160
+        self.up2 = self.conv_upsample_block(features * 8, features * 4)          # 160 -> 320
+        self.up3 = self.conv_upsample_block(features * 8, features * 2)
+        self.up4 = self.conv_upsample_block(features * 4, features)
         
         # Final output
         self.final = nn.ConvTranspose2d(features * 2, out_channels, kernel_size=4, stride=2, padding=1)
@@ -80,7 +80,7 @@ class DeepUNetBlock(BaseArchitecture):
 
 
 
-class Discriminator(BaseArchitecture):
+class Discriminator(BaseBlocks):
     def __init__(self, in_channels=3, features=64, norm_layer=nn.BatchNorm2d, with_dropout=True):
         super(Discriminator, self).__init__()
         self.norm_layer = norm_layer
@@ -143,8 +143,8 @@ class LightUNetBlock(nn.Module):
         self.bottleneck = self.conv_block(features * 2, features * 4)  # 160 -> 80
 
         # Decoder
-        self.up1 = self.up_block(features * 4, features * 2)          # 80 -> 160
-        self.up2 = self.up_block(features * 2 * 2, features)          # 160 -> 320
+        self.up1 = self.conv_upsample_block(features * 4, features * 2)          # 80 -> 160
+        self.up2 = self.conv_upsample_block(features * 2 * 2, features)          # 160 -> 320
 
         # Final output
         self.final = nn.ConvTranspose2d(features * 2, out_channels, kernel_size=4, stride=2, padding=1)
