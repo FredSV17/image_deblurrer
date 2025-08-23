@@ -61,10 +61,6 @@ def train_wgan(model, dtl, show_results_by_epoch=5, save_model_by_epoch=False):
             loss_D.backward()
             model.optimizer_D.step()
 
-            # Clip weights of discriminator
-            for p in model.discriminator.parameters():
-                p.data.clamp_(-args['clip_value'], args['clip_value'])
-
             # Train the generator every n_critic iterations
             if i % args['n_critic'] == 0:
 
@@ -86,8 +82,9 @@ def train_wgan(model, dtl, show_results_by_epoch=5, save_model_by_epoch=False):
                 model.optimizer_G.step()
                 
             print(
-                "\r[Epoch %d/%d] [Batch %d/%d] [D loss: %.4f] [G loss: %.4f]" %
-                (epoch, args['n_epochs'], batches_done % len(dtl.dataloader_base), len(dtl.dataloader_blurred), loss_D.item(), loss_G.item()),
+                "\r[Epoch %d/%d] [Batch %d/%d] [Critic score(Fake): %.4f] [Critic score(True): %.4f] [D loss: %.4f] [G loss: %.4f]" %
+                (epoch, args['n_epochs'], batches_done % len(dtl.dataloader_base), len(dtl.dataloader_blurred), 
+                 torch.mean(fake_validity).item(), torch.mean(real_validity).item(), loss_D.item(), loss_G.item()),
                 end='', flush=True
             )
             
@@ -101,7 +98,6 @@ def train_wgan(model, dtl, show_results_by_epoch=5, save_model_by_epoch=False):
             with torch.no_grad():
                 denoised_images = model.generator(imgs_noisy)
             #img_list.append(vutils.make_grid(denoised_images, padding=2, normalize=True))
-            print('Generated images')
             plt.figure(figsize=(10, 10))
 
             plt.imshow(make_grid(denoised_images.detach().cpu(), padding=2, normalize=True).permute(1, 2, 0))
@@ -125,3 +121,4 @@ def train_wgan(model, dtl, show_results_by_epoch=5, save_model_by_epoch=False):
             if save_model_by_epoch:
                 print("Saving model...")
                 model.save_model(epoch)
+        print()

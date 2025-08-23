@@ -8,8 +8,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.ndimage import gaussian_filter
 
-BLURRED_IMGS_PATH = 'data_new/blr-img/images'
-NORMAL_IMGS_PATH = 'data_new/nrm-img/images'
+BLURRED_IMGS_PATH = 'data/blr-img/images'
+NORMAL_IMGS_PATH = 'data/nrm-img/images'
 
 # Create a dataset with blurred images
 def blur(images):

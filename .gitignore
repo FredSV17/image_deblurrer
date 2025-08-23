@@ -1,3 +1,4 @@
-data_new/
+data/*
+saved_model
 .vscode
 __pycache__
