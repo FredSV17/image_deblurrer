@@ -18,8 +18,7 @@ Tensor = torch.cuda.FloatTensor if device == 'cuda' else torch.FloatTensor
 
 os.makedirs("results/images", exist_ok=True)
 
-# Loss weight for gradient penalty
-lambda_gp = 10
+
 
 
     
@@ -56,7 +55,7 @@ def train_wgan(model, dtl, show_results_by_epoch=5, save_model_by_epoch=False):
             gradient_penalty = compute_gradient_penalty(model.discriminator, real_imgs.data, fake_imgs.data)
             
             # Adversarial loss
-            loss_D = -torch.mean(real_validity) + torch.mean(fake_validity) + lambda_gp * gradient_penalty
+            loss_D = -torch.mean(real_validity) + torch.mean(fake_validity) + gradient_penalty
             
             loss_D.backward()
             model.optimizer_D.step()

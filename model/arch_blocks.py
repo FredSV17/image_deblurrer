@@ -234,7 +234,8 @@ class ConvBlock(nn.Module):
         x = self.leaky_relu(self.conv3(x))  # [B, 256, 10, 10]
         x = self.conv4(x)                   # [B, 1, 1, 1]
         return x
-    
+
+# PatchGAN discriminator - good for focusing on finer details of the image
 class NLayerDiscriminator(nn.Module):
     """Defines a PatchGAN discriminator"""
 

@@ -39,30 +39,43 @@ class PerceptualLoss():
         loss_content = ((f_fake - f_real_no_grad)**2).mean()
         return loss_content
 
+# Loss weight for gradient penalty
+lambda_gp = 10
 
-def compute_gradient_penalty(D, real_samples, fake_samples, device='cuda'):
-    """Calculates the gradient penalty for WGAN-GP."""
+def compute_gradient_penalty(D, real_samples, fake_samples):
+    """Gradient penalty for WGAN-GP with PatchGAN discriminator."""
+    device = real_samples.device
     batch_size = real_samples.size(0)
 
-    # Random weight term for interpolation between real and fake samples
     alpha = torch.rand(batch_size, 1, 1, 1, device=device)
-
-    # Get random interpolation between real and fake samples
-    interpolates = (alpha * real_samples + ((1 - alpha) * fake_samples)).requires_grad_(True)
+    alpha = alpha.expand_as(real_samples)
+    interpolates = (alpha * real_samples + (1 - alpha) * fake_samples).requires_grad_(True)
 
     d_interpolates = D(interpolates)
-    fake = torch.ones_like(d_interpolates, device=device, requires_grad=False)
 
-    # Calculate gradients of D(interpolates) w.r.t. interpolates
+    grad_outputs = torch.ones_like(d_interpolates, device=device)
+
     gradients = torch.autograd.grad(
         outputs=d_interpolates,
         inputs=interpolates,
-        grad_outputs=fake,
+        grad_outputs=grad_outputs,
         create_graph=True,
         retain_graph=True,
         only_inputs=True
     )[0]
+    
 
+    # Gradients have shape (batch_size, num_channels, img_width, img_height),
+    # so flatten to easily take norm per example in batch
     gradients = gradients.view(batch_size, -1)
-    penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean()
-    return penalty
+    #gradient_norm = gradients.norm(2, dim=1).mean().data[0]
+    
+    ########### Logging #############
+    #self.losses['gradient_norm'].append(gradients.norm(2, dim=1).mean().item())
+    
+    # Derivatives of the gradient close to 0 can cause problems because of
+    # the square root, so manually calculate norm and add epsilon
+    gradients_norm = torch.sqrt(torch.sum(gradients ** 2, dim=1) + 1e-12)
+
+    # Return gradient penalty
+    return lambda_gp * ((gradients_norm - 1) ** 2).mean()
