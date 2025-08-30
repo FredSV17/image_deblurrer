@@ -2,8 +2,8 @@ from model.gan_training import GAN, train_wgan
 from data_loader import DataLoaderCreator
 from model.model_args import args
 
-IMG_NRML_DIR = "data/nrm-img"
-IMG_BLUR_DIR = "data/blr-img"
+IMG_NRML_DIR = "data/gopro_deblur/sharp"
+IMG_BLUR_DIR = "data/gopro_deblur/blur"
 SAVED_MODEL_PATH = "results/saved_model"
 
 if __name__=="__main__":

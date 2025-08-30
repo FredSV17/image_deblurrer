@@ -30,11 +30,11 @@ def train_wgan(model, dtl, show_results_by_epoch=5, save_model_by_epoch=False):
 
     batches_done = 0
     for epoch in range(args['n_epochs']):
-        for i, ((imgs_normal, _), (imgs_noisy, _)) in enumerate(zip(dtl.dataloader_base, dtl.dataloader_blurred)):
+        for i, ((imgs_normal, _), (imgs_blur, _)) in enumerate(zip(dtl.dataloader_base, dtl.dataloader_blurred)):
             imgs_normal = imgs_normal
-            imgs_noisy = imgs_noisy
+            imgs_blur = imgs_blur
             imgs_normal = imgs_normal.to(device)
-            imgs_noisy = imgs_noisy.to(device)
+            imgs_blur = imgs_blur.to(device)
             # Configure input
             real_imgs = Variable(imgs_normal.type(Tensor))
 
@@ -45,7 +45,7 @@ def train_wgan(model, dtl, show_results_by_epoch=5, save_model_by_epoch=False):
             
             # Sample noise as generator input
             # Generate a batch of images
-            fake_imgs = model.generator(imgs_noisy).detach()
+            fake_imgs = model.generator(imgs_blur).detach()
             
             # Real images
             real_validity = model.discriminator(real_imgs)
@@ -70,7 +70,7 @@ def train_wgan(model, dtl, show_results_by_epoch=5, save_model_by_epoch=False):
                 model.optimizer_G.zero_grad()
                 percept_loss = PerceptualLoss()
                 # Generate a batch of images
-                gen_imgs = model.generator(imgs_noisy)
+                gen_imgs = model.generator(imgs_blur)
                 # Adversarial loss
                 loss_G = -torch.mean(model.discriminator(gen_imgs))
                 # l1_loss = F.l1_loss(gen_imgs, imgs_normal)
@@ -95,27 +95,21 @@ def train_wgan(model, dtl, show_results_by_epoch=5, save_model_by_epoch=False):
             # Generate and store a grid of fake images every 5 epochs
         if (epoch + 1) % show_results_by_epoch == 0 and show_results_by_epoch != False:
             with torch.no_grad():
-                denoised_images = model.generator(imgs_noisy)
+                deblurred_images = model.generator(imgs_blur)
             #img_list.append(vutils.make_grid(denoised_images, padding=2, normalize=True))
-            plt.figure(figsize=(10, 10))
-
-            plt.imshow(make_grid(denoised_images.detach().cpu(), padding=2, normalize=True).permute(1, 2, 0))
-            plt.axis('off')
-            plt.title("Generated images")
-            if not os.path.exists('results/images/Gen_imgs'):
-                os.makedirs('results/images/Gen_imgs')
-            plt.savefig(f'results/images/Gen_imgs/Gen_imgs_epoch_{epoch}.png')
-            plt.close()
+            f, ax = plt.subplots(2,1, figsize=(10, 10))
+            ax[0].axis('off')
+            ax[0].set_title("Generated images")
             
-            plt.figure(figsize=(10, 10))
-            plt.imshow(make_grid(imgs_noisy.detach().cpu(), padding=2, normalize=True).permute(1, 2, 0))
-            plt.title("Blur images")
+            ax[0].imshow(make_grid(deblurred_images.detach().cpu(), padding=2, normalize=True).permute(1, 2, 0))
             
-            plt.axis('off')
-            if not os.path.exists('results/images/Blr_imgs'):
-                os.makedirs('results/images/Blr_imgs')
-            plt.savefig(f'results/images/Blr_imgs/Blr_imgs_epoch_{epoch}.png')
-            plt.close()
+            ax[1].imshow(make_grid(imgs_blur.detach().cpu(), padding=2, normalize=True).permute(1, 2, 0))
+            ax[1].set_title("Blur images")
+            
+            ax[1].axis('off')
+            if not os.path.exists('results/images'):
+                os.makedirs('results/images')
+            plt.savefig(f'results/images/img_pair_epoch_{epoch}.png')
             
             if save_model_by_epoch:
                 print("Saving model...")
