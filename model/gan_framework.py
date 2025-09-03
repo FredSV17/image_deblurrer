@@ -6,7 +6,7 @@ import os
 class GAN():
     def __init__(self, saved_model_path, device):
         # Initialize generator + discriminator
-        self.generator = UnetGenerator(args['channels'],args['channels'],8)
+        self.generator = UnetGenerator(args['channels'],args['channels'],7)
         self.discriminator = NLayerDiscriminator(args['channels'])
         
         self.optimizer_G = torch.optim.Adam(self.generator.parameters(), lr=args['lr_gen'])
