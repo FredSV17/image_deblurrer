@@ -6,6 +6,7 @@ import torch
 
 from torchvision.utils import save_image, make_grid
 import matplotlib.pyplot as plt
+from torch.nn import L1Loss
 
 
 from model.model_args import args
@@ -27,12 +28,11 @@ def train_wgan(model, dtl, show_results_by_epoch=5, save_model_by_epoch=False):
     # ----------
     #  Training
     # ----------
-
+    percept_loss = PerceptualLoss()
+    l1 = L1Loss()
     batches_done = 0
     for epoch in range(args['n_epochs']):
         for i, ((imgs_normal, _), (imgs_blur, _)) in enumerate(zip(dtl.dataloader_base, dtl.dataloader_blurred)):
-            imgs_normal = imgs_normal
-            imgs_blur = imgs_blur
             imgs_normal = imgs_normal.to(device)
             imgs_blur = imgs_blur.to(device)
             # Configure input
@@ -46,7 +46,7 @@ def train_wgan(model, dtl, show_results_by_epoch=5, save_model_by_epoch=False):
             # Sample noise as generator input
             # Generate a batch of images
             fake_imgs = model.generator(imgs_blur).detach()
-            
+            model.optimizer_D.zero_grad()
             # Real images
             real_validity = model.discriminator(real_imgs)
             # Fake images
@@ -55,7 +55,7 @@ def train_wgan(model, dtl, show_results_by_epoch=5, save_model_by_epoch=False):
             gradient_penalty = compute_gradient_penalty(model.discriminator, real_imgs.data, fake_imgs.data)
             
             # Adversarial loss
-            loss_D = -torch.mean(real_validity) + torch.mean(fake_validity) + gradient_penalty
+            loss_D = -(torch.mean(real_validity) - torch.mean(fake_validity)) + gradient_penalty
             
             loss_D.backward()
             model.optimizer_D.step()
@@ -68,15 +68,16 @@ def train_wgan(model, dtl, show_results_by_epoch=5, save_model_by_epoch=False):
                 # -----------------
 
                 model.optimizer_G.zero_grad()
-                percept_loss = PerceptualLoss()
+                
                 # Generate a batch of images
                 gen_imgs = model.generator(imgs_blur)
                 # Adversarial loss
-                loss_G = -torch.mean(model.discriminator(gen_imgs))
-                # l1_loss = F.l1_loss(gen_imgs, imgs_normal)
+                loss_adv = -torch.mean(model.discriminator(gen_imgs))
+                
+                l1_loss = l1(gen_imgs, imgs_normal)
                 content_loss = percept_loss.get_loss(gen_imgs, imgs_normal)
                 # Combined loss
-                loss_G = loss_G + 0.1 * content_loss
+                loss_G = l1_loss + 0.1 * loss_adv + 0.1 * content_loss
                 loss_G.backward()
                 model.optimizer_G.step()
                 

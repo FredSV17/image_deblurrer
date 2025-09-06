@@ -19,7 +19,7 @@ class BaseBlocks(nn.Module):
 
     def conv_transposed_block(self, in_channels, out_channels):
         return nn.Sequential(
-            nn.ConvTranspose2d(in_channels, out_channels, kernel_size=4, stride=2, padding=1),
+            nn.ConvTranspose2d(in_channels, out_channels, kernel_size=4, stride=2, padding=1, bias=True),
             self.norm_layer(out_channels),
             nn.ReLU()
         )
@@ -33,7 +33,7 @@ class BaseBlocks(nn.Module):
             nn.LeakyReLU(0.2)
         )
         
-class UnetSkipConnectionBlock(nn.Module):
+class UnetSkipConnectionBlock(BaseBlocks):
     """Defines the Unet submodule with skip connection.
     X -------------------identity----------------------
     |-- downsampling -- |submodule| -- upsampling --|
@@ -53,6 +53,7 @@ class UnetSkipConnectionBlock(nn.Module):
             use_dropout (bool)  -- if use dropout layers.
         """
         super(UnetSkipConnectionBlock, self).__init__()
+        self.norm_layer = norm_layer
         self.outermost = outermost
         if type(norm_layer) == functools.partial:
             use_bias = norm_layer.func == nn.InstanceNorm2d
@@ -67,17 +68,17 @@ class UnetSkipConnectionBlock(nn.Module):
         upnorm = norm_layer(outer_nc)
 
         if outermost:
-            upconv = nn.ConvTranspose2d(inner_nc * 2, outer_nc, kernel_size=4, stride=2, padding=1)
+            upconv = self.conv_transposed_block(inner_nc * 2, outer_nc)
             down = [downconv]
             up = [uprelu, upconv, nn.Tanh()]
             model = down + [submodule] + up
         elif innermost:
-            upconv = nn.ConvTranspose2d(inner_nc, outer_nc, kernel_size=4, stride=2, padding=1, bias=use_bias)
+            upconv = self.conv_transposed_block(inner_nc, outer_nc)
             down = [downrelu, downconv]
             up = [uprelu, upconv, upnorm]
             model = down + up
         else:
-            upconv = nn.ConvTranspose2d(inner_nc * 2, outer_nc, kernel_size=4, stride=2, padding=1, bias=use_bias)
+            upconv = self.conv_transposed_block(inner_nc * 2, outer_nc)
             down = [downrelu, downconv, downnorm]
             up = [uprelu, upconv, upnorm]
 
