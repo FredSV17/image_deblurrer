@@ -1,6 +1,6 @@
-from model.gan_training import GAN, train_wgan
+from GAN_model.gan_training import GAN, train_wgan
 from data_loader import DataLoaderCreator
-from model.model_args import args
+from GAN_model.model_args import args
 
 IMG_NRML_DIR = "data/gopro_deblur/sharp"
 IMG_BLUR_DIR = "data/gopro_deblur/blur"

@@ -1,6 +1,6 @@
-from model.arch_blocks import ConvBlock, Discriminator, DeepUNetBlock, UnetGenerator, NLayerDiscriminator
+from blocks.arch_blocks import UnetGenerator, NLayerDiscriminator
 import torch
-from model.model_args import args
+from GAN_model.model_args import args
 import os
 
 class GAN():

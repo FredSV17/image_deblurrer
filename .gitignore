@@ -2,3 +2,6 @@ data/*
 results/saved_model/*
 .vscode
 __pycache__
+generated_images/*
+other_model/*
+gan_framework_other.py

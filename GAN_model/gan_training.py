@@ -9,10 +9,10 @@ import matplotlib.pyplot as plt
 from torch.nn import L1Loss
 
 
-from model.model_args import args
-from loss import compute_gradient_penalty, PerceptualLoss
+from GAN_model.model_args import args
+from GAN_model.loss import compute_gradient_penalty, PerceptualLoss
     
-from model.gan_framework import GAN
+from GAN_model.gan_framework import GAN
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 Tensor = torch.cuda.FloatTensor if device == 'cuda' else torch.FloatTensor
 
@@ -93,7 +93,6 @@ def train_wgan(model, dtl, show_results_by_epoch=5, save_model_by_epoch=False):
             batches_done += 1
             
             
-            # Generate and store a grid of fake images every 5 epochs
         if (epoch + 1) % show_results_by_epoch == 0 and show_results_by_epoch != False:
             with torch.no_grad():
                 deblurred_images = model.generator(imgs_blur)

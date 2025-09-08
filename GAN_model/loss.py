@@ -8,7 +8,7 @@ from torch.autograd import Variable, grad
 import torch.nn.functional as F
 import torch
 
-from model.model_args import args
+from GAN_model.model_args import args
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 Tensor = torch.cuda.FloatTensor if device == 'cuda' else torch.FloatTensor

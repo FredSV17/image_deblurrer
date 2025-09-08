@@ -1,5 +1,5 @@
 import torchvision.transforms as transforms
-from model.model_args import args
+from GAN_model.model_args import args
 
 from torchvision import datasets
 import torch
